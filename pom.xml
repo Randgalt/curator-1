@@ -298,6 +298,9 @@
         <module>curator-x-discovery-server</module>
         <module>curator-x-rpc</module>
         <module>curator-x-async</module>
+        <module>curator-universal</module>
+        <module>curator-universal-zookeeper</module>
+        <module>curator-universal-consul</module>
     </modules>
 
     <dependencyManagement>
@@ -372,6 +375,18 @@
             <dependency>
                 <groupId>org.apache.curator</groupId>
                 <artifactId>curator-x-rpc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.curator</groupId>
+                <artifactId>curator-universal</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.curator</groupId>
+                <artifactId>curator-universal-zookeeper</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
