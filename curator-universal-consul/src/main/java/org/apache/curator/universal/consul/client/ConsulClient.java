@@ -16,15 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.curator.universal.consul;
+package org.apache.curator.universal.consul.client;
 
-import org.apache.curator.universal.api.CuratorHandle;
-import org.apache.curator.universal.consul.client.ConsulClient;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.curator.universal.api.NodePath;
+import java.io.Closeable;
+import java.util.concurrent.CompletionStage;
 
-public interface CuratorHandleFactory
+public interface ConsulClient extends Closeable
 {
-    static CuratorHandle wrap(ConsulClient consulClient)
-    {
-        return null;
-    }
+    void start();
+
+    @Override
+    void close();
+
+    CompletionStage<JsonNode> read(NodePath path);
+
+    CompletionStage<JsonNode> set(NodePath path, byte[] data);
+
+    CompletionStage<JsonNode> set(NodePath path, int version, byte[] data);
+
+    CompletionStage<JsonNode> delete(NodePath path);
+
+    CompletionStage<JsonNode> delete(NodePath path, int version);
 }

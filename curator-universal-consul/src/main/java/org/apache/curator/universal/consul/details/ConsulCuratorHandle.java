@@ -16,15 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.curator.universal.consul;
+package org.apache.curator.universal.consul.details;
 
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.modeled.ModelSpec;
+import org.apache.curator.universal.modeled.ModeledHandle;
+import java.util.Objects;
 
-public interface CuratorHandleFactory
+public class ConsulCuratorHandle implements CuratorHandle
 {
-    static CuratorHandle wrap(ConsulClient consulClient)
+    private final ConsulClient consulClient;
+
+    public ConsulCuratorHandle(ConsulClient consulClient)
     {
+        this.consulClient = Objects.requireNonNull(consulClient, "consulClient cannot be null");
+    }
+
+    @Override
+    public <T> T unwrap()
+    {
+        try
+        {
+            //noinspection unchecked
+            return (T)consulClient;
+        }
+        catch ( ClassCastException dummy )
+        {
+            // TODO ignore
+        }
         return null;
+    }
+
+    @Override
+    public <T> ModeledHandle<T> wrap(ModelSpec<T> modelSpec)
+    {
+        return new ModeledHandleImpl<>(consulClient, modelSpec);
     }
 }
