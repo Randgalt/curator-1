@@ -19,7 +19,6 @@
 package org.apache.curator.universal.consul.details;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.http.client.methods.HttpDelete;
@@ -29,39 +28,40 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.impl.nio.client.HttpAsyncClients;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLEncoder;
-import java.util.Objects;
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-public class ConsulClientImpl implements ConsulClient
+class ConsulClientImpl implements ConsulClient
 {
     private final CloseableHttpAsyncClient client;
     private final URI baseUri;
-    private final ObjectMapper mapper;
+    private final Json json = new Json();
+    private final Session session;
 
-    public ConsulClientImpl(URI baseUri)
+    ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession)
     {
-        this.baseUri = Objects.requireNonNull(baseUri, "baseUri cannot be null");
-        client = HttpAsyncClients.createDefault();  // lots TODO
-
-        mapper = new ObjectMapper();    // TODO - proper config
+        this.baseUri = baseUri;
+        this.client = client;
+        session = new Session(this, sessionName, ttl, checks, lockDelay, maxCloseSession);
     }
 
     @Override
     public void start()
     {
         client.start();
+        session.start();
     }
 
     @Override
     public void close()
     {
+        session.close();
         try
         {
             client.close();
@@ -70,6 +70,20 @@ public class ConsulClientImpl implements ConsulClient
         {
             throw new RuntimeException("Could not close http client", e);
         }
+    }
+
+    @Override
+    public boolean blockUntilSession(Duration maxBlock)
+    {
+        try
+        {
+            return session.sessionSetLatch().await(maxBlock.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        catch ( InterruptedException e )
+        {
+            Thread.currentThread().interrupt();
+        }
+        return false;
     }
 
     @Override
@@ -102,51 +116,40 @@ public class ConsulClientImpl implements ConsulClient
         return request(path, version, HttpDelete::new);
     }
 
-    private HttpPut putRequest(URI uri, byte[] data)
+    HttpPut putRequest(URI uri, byte[] data)
     {
         HttpPut request = new HttpPut(uri);
         request.setEntity(new ByteArrayEntity(data));
         return request;
     }
 
-    private CompletionStage<JsonNode> request(NodePath path, Function<URI, HttpRequestBase> builder)
+    CloseableHttpAsyncClient httpClient()
     {
-        return request(path, -1, builder);
+        return client;
     }
 
-    private CompletionStage<JsonNode> request(NodePath path, int version, Function<URI, HttpRequestBase> builder)
+    Json json()
     {
-        Callback callback = new Callback(mapper);
-        HttpRequestBase request = builder.apply(buildUri("/v1/kv/", path.fullPath(), version));
-        client.execute(request, callback);
-        return callback.getFuture();
+        return json;
     }
 
-    private URI buildUri(String apiPath, String extra, int version)
+    URI buildUri(String apiPath, String extra, Object... queryParameters)
     {
         String path = apiPath;
         if ( extra != null )
         {
-            if ( !path.endsWith("/") )
-            {
-                path += "/";
-            }
-            try
-            {
-                path += URLEncoder.encode(extra, "UTF-8");
-            }
-            catch ( UnsupportedEncodingException e )
-            {
-                throw new RuntimeException(e);
-            }
+            path += extra;
         }
 
         try
         {
             URIBuilder builder = new URIBuilder(baseUri).setPath(path);
-            if ( version >= 0 )
+            if ( queryParameters != null )
             {
-                builder = builder.addParameter("cas", Integer.toString(version));
+                for ( int i = 0; (i + 1) < queryParameters.length; i += 2 )
+                {
+                    builder = builder.addParameter(String.valueOf(queryParameters[i]), String.valueOf(queryParameters[i + 1]));
+                }
             }
             return builder.build();
         }
@@ -156,4 +159,26 @@ public class ConsulClientImpl implements ConsulClient
         }
     }
 
+    String sessionId()
+    {
+        return session.sessionId();
+    }
+
+    private CompletionStage<JsonNode> request(NodePath path, Function<URI, HttpRequestBase> builder)
+    {
+        return request(path, -1, builder);
+    }
+
+    private CompletionStage<JsonNode> request(NodePath path, int version, Function<URI, HttpRequestBase> builder)
+    {
+        Callback callback = new Callback(json);
+        HttpRequestBase request = builder.apply(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version));
+        client.execute(request, callback);
+        return callback.getFuture();
+    }
+
+    private URI buildVersionedUri(String apiPath, String extra, int version)
+    {
+        return (version >= 0) ? buildUri(apiPath, extra, "cas", version) : buildUri(apiPath, extra);
+    }
 }

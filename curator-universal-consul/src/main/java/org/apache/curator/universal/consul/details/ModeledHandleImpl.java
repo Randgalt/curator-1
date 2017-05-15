@@ -93,7 +93,8 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     public CompletionStage<Node<T>> readAsNode()
     {
         return consulClient.read(modelSpec.path()).thenApply(node -> {
-            byte[] data = Base64.getDecoder().decode(node.get("Value").asText());
+            JsonNode firstChild = Json.requireFirstChild(node);
+            byte[] data = Base64.getDecoder().decode(firstChild.get("Value").asText());
             T model = modelSpec.serializer().deserialize(data);
             return new Node<T>()
             {

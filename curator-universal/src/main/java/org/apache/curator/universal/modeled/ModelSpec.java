@@ -20,6 +20,7 @@ package org.apache.curator.universal.modeled;
 
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.Resolvable;
+import org.apache.curator.universal.details.ModelSpecBuilder;
 import java.util.List;
 
 /**
@@ -36,6 +37,30 @@ import java.util.List;
  */
 public interface ModelSpec<T> extends Resolvable
 {
+    /**
+     * Start a new ModelSpecBuilder for the given path and serializer.
+     *
+     * @param path path to model
+     * @param serializer the model's serializer
+     * @return builder
+     */
+    static <T> ModelSpecBuilder<T> builder(NodePath path, ModelSerializer<T> serializer)
+    {
+        return new ModelSpecBuilder<>(path, serializer);
+    }
+
+    /**
+     * Start a new ModelSpecBuilder for the given serializer. You must set a path
+     * before calling {@link ModelSpecBuilder#build()}
+     *
+     * @param serializer the model's serializer
+     * @return builder
+     */
+    static <T> ModelSpecBuilder<T> builder(ModelSerializer<T> serializer)
+    {
+        return new ModelSpecBuilder<>(serializer);
+    }
+
     /**
      * <p>
      *     Return a new CuratorModel instance with all the same options but applying to the given child node of this CuratorModel's

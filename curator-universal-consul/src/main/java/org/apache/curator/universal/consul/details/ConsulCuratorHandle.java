@@ -18,19 +18,23 @@
  */
 package org.apache.curator.universal.consul.details;
 
+import com.google.common.base.Preconditions;
 import org.apache.curator.universal.api.CuratorHandle;
+import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
 import java.util.Objects;
 
 public class ConsulCuratorHandle implements CuratorHandle
 {
-    private final ConsulClient consulClient;
+    private final ConsulClientImpl consulClient;
 
     public ConsulCuratorHandle(ConsulClient consulClient)
     {
-        this.consulClient = Objects.requireNonNull(consulClient, "consulClient cannot be null");
+        Preconditions.checkArgument(consulClient instanceof ConsulClientImpl, "ConsulClient not created properly"); // TODO
+        this.consulClient = (ConsulClientImpl)Objects.requireNonNull(consulClient, "consulClient cannot be null");
     }
 
     @Override
@@ -52,5 +56,11 @@ public class ConsulCuratorHandle implements CuratorHandle
     public <T> ModeledHandle<T> wrap(ModelSpec<T> modelSpec)
     {
         return new ModeledHandleImpl<>(consulClient, modelSpec);
+    }
+
+    @Override
+    public CuratorLock createLock(NodePath lockPath)
+    {
+        return new CuratorLockImpl(consulClient, Objects.requireNonNull(lockPath, "lockPath cannot be null"));
     }
 }

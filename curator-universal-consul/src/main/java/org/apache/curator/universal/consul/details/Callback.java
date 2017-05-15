@@ -29,11 +29,11 @@ import java.util.concurrent.CompletableFuture;
 class Callback implements FutureCallback<HttpResponse>
 {
     private final CompletableFuture<JsonNode> future = new CompletableFuture<>();
-    private final ObjectMapper mapper;
+    private final Json json;
 
-    Callback(ObjectMapper mapper)
+    Callback(Json json)
     {
-        this.mapper = mapper;
+        this.json = json;
     }
 
     CompletableFuture<JsonNode> getFuture()
@@ -46,10 +46,10 @@ class Callback implements FutureCallback<HttpResponse>
     {
         try
         {
-            JsonNode node = mapper.readTree(response.getEntity().getContent());
+            JsonNode node = json.read(response.getEntity().getContent());
             future.complete(node);
         }
-        catch ( IOException e )
+        catch ( Exception e )
         {
             failed(e);
         }

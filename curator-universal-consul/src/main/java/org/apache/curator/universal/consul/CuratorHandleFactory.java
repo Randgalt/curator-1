@@ -20,11 +20,12 @@ package org.apache.curator.universal.consul;
 
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.consul.details.ConsulCuratorHandle;
 
 public interface CuratorHandleFactory
 {
     static CuratorHandle wrap(ConsulClient consulClient)
     {
-        return null;
+        return new ConsulCuratorHandle(consulClient);
     }
 }
