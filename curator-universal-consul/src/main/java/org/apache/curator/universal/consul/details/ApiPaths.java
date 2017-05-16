@@ -2,9 +2,11 @@ package org.apache.curator.universal.consul.details;
 
 class ApiPaths
 {
-    static final String createSession = "/v1/session/create";
-    static final String deleteSession = "/v1/session/delete";
-    static final String renewSession = "/v1/session/renew";
+    private static final String base = "/v1";
 
-    static final String keyValue = "/v1/kv";
+    static final String createSession = base + "/session/create";
+    static final String deleteSession = base + "/session/delete";
+    static final String renewSession = base + "/session/renew";
+
+    static final String keyValue = base + "/kv";
 }

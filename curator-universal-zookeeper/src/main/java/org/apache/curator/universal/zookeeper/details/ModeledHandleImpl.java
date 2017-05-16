@@ -26,8 +26,10 @@ import org.apache.curator.x.async.AsyncCuratorFramework;
 import org.apache.curator.x.async.modeled.ModelSpecBuilder;
 import org.apache.curator.x.async.modeled.ModeledFramework;
 import org.apache.curator.x.async.modeled.ZPath;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 
 class ModeledHandleImpl<T> implements ModeledHandle<T>
 {
@@ -44,6 +46,11 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     static ZPath asZPath(NodePath path)
     {
         return ZPath.parseWithIds(path.toString());    // TODO always use parseWithIds?
+    }
+
+    static NodePath asNodePath(ZPath path)
+    {
+        return NodePath.parseWithIds(path.toString());    // TODO always use parseWithIds?
     }
 
     private ModeledHandleImpl(ModeledFramework<T> client)
@@ -103,5 +110,17 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     public CompletionStage<Void> delete(int version)
     {
         return client.delete(version);
+    }
+
+    @Override
+    public CompletionStage<List<NodePath>> children()
+    {
+        return client.children().thenApply(nodes -> nodes.stream().map(ModeledHandleImpl::asNodePath).collect(Collectors.toList()));
+    }
+
+    @Override
+    public CompletionStage<List<NodePath>> siblings()
+    {
+        return parent().children();
     }
 }

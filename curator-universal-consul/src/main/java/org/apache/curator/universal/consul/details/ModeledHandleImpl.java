@@ -26,6 +26,7 @@ import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
 import org.apache.curator.universal.modeled.Node;
 import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -129,5 +130,17 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     public CompletionStage<Void> delete(int version)
     {
         return consulClient.delete(modelSpec.path(), version).thenAccept(__ -> {});
+    }
+
+    @Override
+    public CompletionStage<List<NodePath>> children()
+    {
+        return consulClient.children(modelSpec.path());
+    }
+
+    @Override
+    public CompletionStage<List<NodePath>> siblings()
+    {
+        return consulClient.children(modelSpec.parent().path());
     }
 }

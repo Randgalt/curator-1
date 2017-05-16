@@ -21,6 +21,7 @@ package org.apache.curator.universal.consul.details;
 import com.google.common.base.Preconditions;
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
+import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
@@ -62,5 +63,11 @@ public class ConsulCuratorHandle implements CuratorHandle
     public CuratorLock createLock(NodePath lockPath)
     {
         return new CuratorLockImpl(consulClient, Objects.requireNonNull(lockPath, "lockPath cannot be null"));
+    }
+
+    @Override
+    public SessionState sessionState()
+    {
+        return null;
     }
 }

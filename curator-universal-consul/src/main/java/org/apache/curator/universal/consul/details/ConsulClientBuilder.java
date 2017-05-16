@@ -15,7 +15,7 @@ public class ConsulClientBuilder
     private final URI baseUri;
     private String sessionName = "curator";
     private String ttl = "30s";
-    private String lockDelay = "";
+    private String lockDelay = "0s";
     private List<String> checks = Collections.emptyList();
     private Duration maxCloseSession = Duration.ofSeconds(5);
 

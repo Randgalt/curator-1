@@ -20,6 +20,7 @@ package org.apache.curator.universal.zookeeper.details;
 
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
+import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
@@ -57,6 +58,12 @@ public class CuratorHandleImpl implements CuratorHandle
 
     @Override
     public CuratorLock createLock(NodePath lockPath)
+    {
+        return null;
+    }
+
+    @Override
+    public SessionState sessionState()
     {
         return null;
     }

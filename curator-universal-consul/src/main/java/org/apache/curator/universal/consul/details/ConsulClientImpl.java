@@ -20,6 +20,7 @@ package org.apache.curator.universal.consul.details;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.NodePath;
+import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -32,9 +33,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 class ConsulClientImpl implements ConsulClient
@@ -43,12 +46,15 @@ class ConsulClientImpl implements ConsulClient
     private final URI baseUri;
     private final Json json = new Json();
     private final Session session;
+    private final DeleteManager deleteManager;
+    private final AtomicReference<SessionState> sessionState = new AtomicReference<>(SessionState.LATENT);
 
     ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession)
     {
         this.baseUri = baseUri;
         this.client = client;
         session = new Session(this, sessionName, ttl, checks, lockDelay, maxCloseSession);
+        deleteManager = new DeleteManager(this);
     }
 
     @Override
@@ -61,6 +67,7 @@ class ConsulClientImpl implements ConsulClient
     @Override
     public void close()
     {
+        deleteManager.close();
         session.close();
         try
         {
@@ -84,6 +91,12 @@ class ConsulClientImpl implements ConsulClient
             Thread.currentThread().interrupt();
         }
         return false;
+    }
+
+    @Override
+    public SessionState sessionState()
+    {
+        return sessionState.get();
     }
 
     @Override
@@ -116,6 +129,26 @@ class ConsulClientImpl implements ConsulClient
         return request(path, version, HttpDelete::new);
     }
 
+    @Override
+    public CompletionStage<List<NodePath>> children(NodePath path)
+    {
+        Callback callback = new Callback(json);
+        HttpGet request = new HttpGet(buildUri(ApiPaths.keyValue, path.fullPath(), "recurse", true, "keys", true));
+        client.execute(request, callback);
+        return callback.getFuture().thenApply(node -> {
+            List<NodePath> paths = new ArrayList<>();
+            for ( JsonNode child : node )
+            {
+                NodePath childPath = NodePath.parse(child.asText());
+                if ( childPath.parent().equals(path) )
+                {
+                    paths.add(childPath);
+                }
+            }
+            return paths;
+        });
+    }
+
     HttpPut putRequest(URI uri, byte[] data)
     {
         HttpPut request = new HttpPut(uri);
@@ -138,7 +171,14 @@ class ConsulClientImpl implements ConsulClient
         String path = apiPath;
         if ( extra != null )
         {
-            path += extra;
+            if ( extra.startsWith("/") )
+            {
+                path += extra;
+            }
+            else
+            {
+                path += "/" + extra;
+            }
         }
 
         try

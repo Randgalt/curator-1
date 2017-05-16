@@ -29,4 +29,6 @@ public interface CuratorHandle
     <T> ModeledHandle<T> wrap(ModelSpec<T> modelSpec);
 
     CuratorLock createLock(NodePath lockPath);
+
+    SessionState sessionState();
 }

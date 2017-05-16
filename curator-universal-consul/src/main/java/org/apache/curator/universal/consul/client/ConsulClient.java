@@ -20,11 +20,13 @@ package org.apache.curator.universal.consul.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.NodePath;
+import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.consul.details.ConsulClientBuilder;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import java.io.Closeable;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 public interface ConsulClient extends Closeable
@@ -41,6 +43,8 @@ public interface ConsulClient extends Closeable
 
     boolean blockUntilSession(Duration maxBlock);
 
+    SessionState sessionState();
+
     CompletionStage<JsonNode> read(NodePath path);
 
     CompletionStage<JsonNode> set(NodePath path, byte[] data);
@@ -50,4 +54,12 @@ public interface ConsulClient extends Closeable
     CompletionStage<JsonNode> delete(NodePath path);
 
     CompletionStage<JsonNode> delete(NodePath path, int version);
+
+    /**
+     * Return the child paths of the given path (in no particular order)
+     *
+     * @param path parent path
+     * @return AsyncStage
+     */
+    CompletionStage<List<NodePath>> children(NodePath path);
 }

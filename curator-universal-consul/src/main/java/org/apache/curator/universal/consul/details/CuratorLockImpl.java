@@ -29,13 +29,13 @@ class CuratorLockImpl implements CuratorLock
 
         long remainingNanos = unit.toNanos(time);
 
-        boolean result = false;
+        boolean hasTheLock = false;
         int consulIndex = -1;
         while ( remainingNanos > 0 )
         {
             long startNanos = System.nanoTime();
 
-            HttpPut put = client.putRequest(makeUri(), new byte[0]);
+            HttpPut put = client.putRequest(makeUri("acquire"), new byte[0]);
             Future<HttpResponse> future = client.httpClient().execute(put, null);
             SyncHandler handler = new SyncHandler(client.json(), future);
             SyncHandler.Response response = handler.get(remainingNanos, TimeUnit.NANOSECONDS, "Acquiring lock: ", lockPath);
@@ -45,13 +45,14 @@ class CuratorLockImpl implements CuratorLock
             }
             if ( response.node.asBoolean() )
             {
-                result = true;
+                hasTheLock = true;
                 break;
             }
 
             URI uri;
             if ( consulIndex >= 0 )
             {
+                // TODO include lock delay
                 uri = client.buildUri(ApiPaths.keyValue, lockPath.fullPath(), "index", consulIndex, "wait", TimeStrings.toSeconds(Duration.ofNanos(remainingNanos)));
             }
             else
@@ -68,7 +69,7 @@ class CuratorLockImpl implements CuratorLock
             }
 
             JsonNode firstChild = Json.requireFirstChild(response.node);
-            if ( firstChild.get("Session").asText().equals(client.sessionId()) )
+            if ( firstChild.has("Session") && firstChild.get("Session").asText().equals(client.sessionId()) )
             {
                 break;
             }
@@ -77,18 +78,20 @@ class CuratorLockImpl implements CuratorLock
             long elapsedNanos = System.nanoTime() - startNanos;
             remainingNanos -= elapsedNanos;
         }
-        return result;
+        return hasTheLock;
     }
 
     @Override
     public void release()
     {
-
+        // TODO use Delete Manager
+        HttpPut put = client.putRequest(makeUri("release"), new byte[0]);
+        client.httpClient().execute(put, null);
     }
 
-    private URI makeUri()
+    private URI makeUri(String mode)
     {
         // TODO - handle no session
-        return client.buildUri(ApiPaths.keyValue, lockPath.fullPath(), "acquire", client.sessionId());
+        return client.buildUri(ApiPaths.keyValue, lockPath.fullPath(), mode, client.sessionId());
     }
 }

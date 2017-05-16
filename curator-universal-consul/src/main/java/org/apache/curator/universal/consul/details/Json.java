@@ -54,7 +54,8 @@ class Json
     {
         try
         {
-            return mapper.readTree(content.trim());
+            String trimmed = content.trim();
+            return trimmed.isEmpty() ? mapper.createObjectNode() : mapper.readTree(trimmed);
         }
         catch ( IOException e )
         {

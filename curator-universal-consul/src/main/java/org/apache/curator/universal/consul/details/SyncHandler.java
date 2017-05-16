@@ -60,7 +60,7 @@ class SyncHandler
         return null;
     }
 
-    private int getConsulIndex(HttpResponse response)
+    static int getConsulIndex(HttpResponse response)
     {
         Header header = response.getFirstHeader("X-Consul-Index");
         try

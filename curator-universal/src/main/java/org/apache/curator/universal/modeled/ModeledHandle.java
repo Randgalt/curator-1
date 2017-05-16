@@ -20,6 +20,7 @@ package org.apache.curator.universal.modeled;
 
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 public interface ModeledHandle<T>
@@ -72,7 +73,7 @@ public interface ModeledHandle<T>
      * version of the given model
      *
      * @param model model to write
-     * @return AsyncStage
+     * @return CompletionStage
      */
     CompletionStage<String> set(T model);
 
@@ -82,28 +83,28 @@ public interface ModeledHandle<T>
      *
      * @param model model to write
      * @param version if data is being set instead of creating the node, the data version to use
-     * @return AsyncStage
+     * @return CompletionStage
      */
     CompletionStage<String> set(T model, int version);
 
     /**
      * Read the ZNode at this instance's path and deserialize into a model
      *
-     * @return AsyncStage
+     * @return CompletionStage
      */
     CompletionStage<T> read();
 
     /**
      * Read the Node at this instance's path and deserialize into a model
      *
-     * @return AsyncStage
+     * @return CompletionStage
      */
     CompletionStage<Node<T>> readAsNode();
 
     /**
      * Delete the ZNode at this instance's path passing -1 for the delete version
      *
-     * @return AsyncStage
+     * @return CompletionStage
      */
     CompletionStage<Void> delete();
 
@@ -111,7 +112,21 @@ public interface ModeledHandle<T>
      * Delete the ZNode at this instance's path passing the given delete version
      *
      * @param version update version to use
-     * @return AsyncStage
+     * @return CompletionStage
      */
     CompletionStage<Void> delete(int version);
+
+    /**
+     * Return the child paths of this instance's path (in no particular order)
+     *
+     * @return CompletionStage
+     */
+    CompletionStage<List<NodePath>> children();
+
+    /**
+     * Return the child paths of this instance's parent path (in no particular order)
+     *
+     * @return CompletionStage
+     */
+    CompletionStage<List<NodePath>> siblings();
 }

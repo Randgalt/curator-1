@@ -83,6 +83,10 @@ class Session implements Closeable
 
                 scheduleNextRenewal();
             });
+            callback.getFuture().exceptionally(e -> {
+                log.error("Could not create session", e);
+                return null;
+            });
         }
         catch ( JsonProcessingException e )
         {
@@ -157,6 +161,10 @@ class Session implements Closeable
                             log.error("Could not parse ttl string from server: " + ttlString, e);
                         }
                     }
+                });
+                callback.getFuture().exceptionally(e -> {
+                    log.error("Could not renew session: " + localSessionId, e);
+                    return null;
                 });
             }
         }
