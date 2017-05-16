@@ -40,6 +40,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -99,15 +100,33 @@ class ConsulClientImpl implements ConsulClient
     @Override
     public boolean blockUntilSession(Duration maxBlock)
     {
+        Semaphore semaphore = new Semaphore(0);
+        SessionStateListener listener = __ -> semaphore.release();
+        sessionStateListeners.addListener(listener);
         try
         {
-            return session.sessionSetLatch().await(maxBlock.toMillis(), TimeUnit.MILLISECONDS);
+            while ( (maxBlock.toNanos() > 0) && (sessionState.get() != SessionState.CONNECTED) )
+            {
+                long startNanos = System.nanoTime();
+                try
+                {
+                    semaphore.tryAcquire(maxBlock.toNanos(), TimeUnit.NANOSECONDS);
+                }
+                catch ( InterruptedException e )
+                {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+                long elapsed = System.nanoTime() - startNanos;
+                maxBlock = maxBlock.minusNanos(elapsed);
+            }
         }
-        catch ( InterruptedException e )
+        finally
         {
-            Thread.currentThread().interrupt();
+            sessionStateListeners.removeListener(listener);
         }
-        return false;
+
+        return sessionState.get() == SessionState.CONNECTED;
     }
 
     @Override
@@ -223,8 +242,11 @@ class ConsulClientImpl implements ConsulClient
 
     void updateSessionState(SessionState newState)
     {
-        SessionState oldValue = sessionState.getAndSet(newState);
-        // TODO
+        SessionState oldState = sessionState.getAndSet(newState);
+        if ( oldState != newState )
+        {
+            sessionStateListeners.forEach(l -> l.newSessionState(newState));
+        }
     }
 
     private CompletionStage<JsonNode> request(NodePath path, Function<URI, HttpRequestBase> builder)

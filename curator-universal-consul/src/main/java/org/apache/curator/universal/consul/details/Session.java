@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.curator.universal.api.SessionState;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpPut;
@@ -12,8 +13,8 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,10 +29,12 @@ class Session implements Closeable
     private final List<String> checks;
     private final String lockDelay;
     private final Duration maxCloseSession;
-    private final CountDownLatch sessionSetLatch = new CountDownLatch(1);
     private final ScheduledExecutorService executorService;
+    private final Duration sessionLength;
+
     private volatile Duration ttl;
     private volatile String sessionId = errorSessionId;
+    private volatile Instant startOfSuspended = null;
 
     private static final String errorSessionId = "";
 
@@ -43,55 +46,14 @@ class Session implements Closeable
         this.checks = checks;
         this.lockDelay = lockDelay;
         this.maxCloseSession = maxCloseSession;
-        this.ttl = TimeStrings.parse(ttl);
+        this.ttl = this.sessionLength = TimeStrings.parse(ttl);
 
         executorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("Session-%d").setDaemon(true).build());
     }
 
     void start()
     {
-        ObjectNode node = client.json().mapper().createObjectNode();
-        node.put("Name", sessionName);
-        node.put("TTL", ttlString);
-        if ( checks.size() > 0 )
-        {
-            ArrayNode tab = client.json().mapper().createArrayNode();
-            checks.forEach(tab::add);
-            node.set("Checks", tab);
-        }
-        if ( !lockDelay.isEmpty() )
-        {
-            node.put("LockDelay", lockDelay);
-        }
-        URI uri = client.buildUri(ApiPaths.createSession, null);
-        try
-        {
-            HttpPut request = client.putRequest(uri, client.json().mapper().writeValueAsBytes(node));
-            Callback callback = new Callback(client.json());
-            client.httpClient().execute(request, callback);
-            callback.getFuture().whenComplete((result, e) -> {
-                if ( e != null )
-                {
-                    log.error("Session creation failed", e);
-                    sessionId = errorSessionId;
-                }
-                else
-                {
-                    sessionId = result.get("ID").asText();
-                }
-                sessionSetLatch.countDown();
-
-                scheduleNextRenewal();
-            });
-            callback.getFuture().exceptionally(e -> {
-                log.error("Could not create session", e);
-                return null;
-            });
-        }
-        catch ( JsonProcessingException e )
-        {
-            throw new RuntimeException("Could not serialize session", e);
-        }
+        executorService.schedule(this::checkSession, 0, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -100,7 +62,7 @@ class Session implements Closeable
         executorService.shutdownNow();
 
         String localSessionId = sessionId;
-        sessionId = errorSessionId; // small race can occur at these two lines but it's not a big deal
+        sessionId = errorSessionId;
 
         if ( !localSessionId.equals(errorSessionId) )
         {
@@ -127,56 +89,136 @@ class Session implements Closeable
         return sessionId;
     }
 
-    CountDownLatch sessionSetLatch()
+    private void checkSession()
     {
-        return sessionSetLatch;
-    }
-
-    private void renewSession()
-    {
+        String localSessionId = sessionId;
         try
         {
-            String localSessionId = sessionId;
-            if ( !localSessionId.equals(errorSessionId) )
+            if ( localSessionId.equals(errorSessionId) )
             {
-                URI uri = client.buildUri(ApiPaths.renewSession, localSessionId);
-                HttpPut request = new HttpPut(uri);
-                Callback callback = new Callback(client.json());
-                client.httpClient().execute(request, callback);
-                callback.getFuture().thenAccept(node -> {
-                    if ( node.has("TTL") )
-                    {
-                        String ttlString = node.get("TTL").asText();
-                        try
-                        {
-                            Duration newTtl = Duration.parse(ttlString);
-                            if ( !newTtl.equals(ttl) )
-                            {
-                                log.info("Server is changing the TTL to: " + ttl);
-                                ttl = newTtl;
-                            }
-                        }
-                        catch ( Exception e )
-                        {
-                            log.error("Could not parse ttl string from server: " + ttlString, e);
-                        }
-                    }
-                });
-                callback.getFuture().exceptionally(e -> {
-                    log.error("Could not renew session: " + localSessionId, e);
-                    return null;
-                });
+                createSession();
+            }
+            else
+            {
+                renewSession();
             }
         }
         finally
         {
-            scheduleNextRenewal();
+            Duration adjusted = ttl.multipliedBy(2).dividedBy(3);   // 2/3 of the ttl
+            executorService.schedule(this::checkSession, adjusted.toMillis(), TimeUnit.MILLISECONDS);
         }
     }
 
-    private void scheduleNextRenewal()
+    private void createSession()
     {
-        Duration adjusted = ttl.multipliedBy(2).dividedBy(3);   // 2/3 of the ttl
-        executorService.schedule(this::renewSession, adjusted.toMillis(), TimeUnit.MILLISECONDS);
+        ObjectNode node = client.json().mapper().createObjectNode();
+        node.put("Name", sessionName);
+        node.put("TTL", ttlString);
+        if ( checks.size() > 0 )
+        {
+            ArrayNode tab = client.json().mapper().createArrayNode();
+            checks.forEach(tab::add);
+            node.set("Checks", tab);
+        }
+        if ( !lockDelay.isEmpty() )
+        {
+            node.put("LockDelay", lockDelay);
+        }
+        URI uri = client.buildUri(ApiPaths.createSession, null);
+        try
+        {
+            HttpPut request = client.putRequest(uri, client.json().mapper().writeValueAsBytes(node));
+            Callback callback = new Callback(client.json());
+            client.httpClient().execute(request, callback);
+            callback.getFuture().whenComplete((result, e) -> {
+                if ( e != null )
+                {
+                    log.error("Session creation failed", e);
+                    setSessionId(errorSessionId);
+                }
+                else
+                {
+                    setSessionId(result.get("ID").asText());
+                }
+            });
+            callback.getFuture().exceptionally(e -> {
+                log.error("Could not create session", e);
+                setSessionId(errorSessionId);
+                return null;
+            });
+        }
+        catch ( JsonProcessingException e )
+        {
+            throw new RuntimeException("Could not serialize session", e);
+        }
+    }
+
+    private void renewSession()
+    {
+        String localSessionId = sessionId;
+        if ( !localSessionId.equals(errorSessionId) )
+        {
+            URI uri = client.buildUri(ApiPaths.renewSession, localSessionId);
+            HttpPut request = new HttpPut(uri);
+            Callback callback = new Callback(client.json());
+            client.httpClient().execute(request, callback);
+            callback.getFuture().thenAccept(node -> {
+                if ( node.has("TTL") )
+                {
+                    String ttlString = node.get("TTL").asText();
+                    try
+                    {
+                        Duration newTtl = Duration.parse(ttlString);
+                        if ( !newTtl.equals(ttl) )
+                        {
+                            log.info("Server is changing the TTL to: " + ttl);
+                            ttl = newTtl;
+                        }
+                    }
+                    catch ( Exception e )
+                    {
+                        log.error("Could not parse ttl string from server: " + ttlString, e);
+                    }
+                }
+                setSessionId(localSessionId);
+            });
+            callback.getFuture().exceptionally(e -> {
+                log.error("Could not renew session: " + localSessionId, e);
+                setSessionId(errorSessionId);
+                return null;
+            });
+        }
+    }
+
+    private synchronized void setSessionId(String newId)
+    {
+        sessionId = newId;
+        boolean isErrorId = sessionId.equals(errorSessionId);
+
+        SessionState newState;
+        if ( isErrorId )
+        {
+            newState = SessionState.SUSPENDED;
+            if ( startOfSuspended == null )
+            {
+                startOfSuspended = Instant.now();
+            }
+            else
+            {
+                Duration elapsed = Duration.between(startOfSuspended, Instant.now());
+                if ( elapsed.compareTo(sessionLength) >= 0 )
+                {
+                    newState = SessionState.LOST;
+                }
+            }
+        }
+        else
+        {
+            startOfSuspended = null;
+            newState = SessionState.CONNECTED;
+        }
+
+        client.updateSessionState(newState);
     }
 }

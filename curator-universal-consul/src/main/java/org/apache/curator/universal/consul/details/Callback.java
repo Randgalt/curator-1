@@ -19,7 +19,9 @@
 package org.apache.curator.universal.consul.details;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.concurrent.FutureCallback;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -42,14 +44,21 @@ class Callback implements FutureCallback<HttpResponse>
     @Override
     public void completed(HttpResponse response)
     {
-        try
+        if ( response.getStatusLine().getStatusCode() != HttpStatus.SC_OK )
         {
-            JsonNode node = json.read(response.getEntity().getContent());
-            future.complete(node);
+            failed(new HttpException(response.getStatusLine().toString()));
         }
-        catch ( Exception e )
+        else
         {
-            failed(e);
+            try
+            {
+                JsonNode node = json.read(response.getEntity().getContent());
+                future.complete(node);
+            }
+            catch ( Exception e )
+            {
+                failed(e);
+            }
         }
     }
 

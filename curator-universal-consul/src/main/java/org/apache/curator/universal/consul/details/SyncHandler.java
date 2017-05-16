@@ -2,7 +2,9 @@ package org.apache.curator.universal.consul.details;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.http.Header;
+import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -24,13 +26,11 @@ class SyncHandler
     {
         final JsonNode node;
         final int consulIndex;
-        final int status;
 
-        Response(JsonNode node, int consulIndex, int status)
+        Response(JsonNode node, int consulIndex)
         {
             this.node = node;
             this.consulIndex = consulIndex;
-            this.status = status;
         }
     }
 
@@ -39,11 +39,14 @@ class SyncHandler
         try
         {
             HttpResponse response = future.get(time, unit);
+            if ( response.getStatusLine().getStatusCode() != HttpStatus.SC_OK )
+            {
+                throw new RuntimeException(new HttpException(response.getStatusLine().toString()));
+            }
+
             return new Response(
                 json.read(response.getEntity().getContent()),
-                getConsulIndex(response),
-                response.getStatusLine().getStatusCode()
-            );
+                getConsulIndex(response));
         }
         catch ( InterruptedException e )
         {
