@@ -18,7 +18,7 @@
  */
 package org.apache.curator.universal.modeled;
 
-import org.apache.curator.universal.api.CuratorHandle;
+import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
 import java.util.List;
 import java.util.concurrent.CompletionStage;

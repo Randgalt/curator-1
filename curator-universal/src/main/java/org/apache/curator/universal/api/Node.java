@@ -16,10 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.curator.universal.modeled;
-
-import org.apache.curator.universal.api.Metadata;
-import org.apache.curator.universal.api.NodePath;
+package org.apache.curator.universal.api;
 
 /**
  * Abstracts a ZooKeeper node
@@ -36,9 +33,33 @@ public interface Node<T>
     Metadata metadata();
 
     /**
-     * The node's current model
+     * The node's current value
      *
-     * @return model
+     * @return value
      */
-    T model();
+    T value();
+
+    static Node<byte[]> raw(NodePath path, Metadata metadata, byte[] bytes)
+    {
+        return new Node<byte[]>()
+        {
+            @Override
+            public NodePath path()
+            {
+                return path;
+            }
+
+            @Override
+            public Metadata metadata()
+            {
+                return metadata;
+            }
+
+            @Override
+            public byte[] value()
+            {
+                return bytes;
+            }
+        };
+    }
 }

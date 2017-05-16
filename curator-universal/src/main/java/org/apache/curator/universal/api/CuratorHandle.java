@@ -18,17 +18,21 @@
  */
 package org.apache.curator.universal.api;
 
+import org.apache.curator.universal.cache.CuratorCache;
+import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
 
 public interface CuratorHandle
 {
-    <T> T unwrap();
-
     <T> ModeledHandle<T> wrap(ModelSpec<T> modelSpec);
 
     CuratorLock createLock(NodePath lockPath);
 
     SessionState sessionState();
+
+    Listenable<SessionStateListener> sessionStateListenable();
+
+    CuratorCache newCuratorCache(NodePath path);
 }

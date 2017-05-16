@@ -2,7 +2,6 @@ package org.apache.curator.universal.consul.details;
 
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
-import org.apache.curator.universal.consul.CuratorHandleFactory;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -113,7 +112,7 @@ public class TestStub
             client.blockUntilSession(Duration.ofHours(1));
 
             CountDownLatch latch = new CountDownLatch(2);
-            CuratorHandle handle = CuratorHandleFactory.wrap(client);
+            CuratorHandle handle = client.asCuratorHandle();
 /*
             NodePath path = NodePath.parse("/a/b/c");
             ModelSpec<Person> modelSpec = ModelSpec.builder(path, JacksonModelSerializer.build(Person.class)).build();

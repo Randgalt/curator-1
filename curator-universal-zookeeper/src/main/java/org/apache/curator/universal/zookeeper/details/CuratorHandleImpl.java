@@ -21,6 +21,9 @@ package org.apache.curator.universal.zookeeper.details;
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.SessionState;
+import org.apache.curator.universal.api.SessionStateListener;
+import org.apache.curator.universal.cache.CuratorCache;
+import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
@@ -36,17 +39,8 @@ public class CuratorHandleImpl implements CuratorHandle
     }
 
     @Override
-    public <T> T unwrap()
+    public Listenable<SessionStateListener> sessionStateListenable()
     {
-        try
-        {
-            //noinspection unchecked
-            return (T)client;
-        }
-        catch ( ClassCastException dummy )
-        {
-            // TODO ignore
-        }
         return null;
     }
 
@@ -64,6 +58,12 @@ public class CuratorHandleImpl implements CuratorHandle
 
     @Override
     public SessionState sessionState()
+    {
+        return null;
+    }
+
+    @Override
+    public CuratorCache newCuratorCache(NodePath path)
     {
         return null;
     }

@@ -19,9 +19,12 @@
 package org.apache.curator.universal.consul.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.SessionState;
+import org.apache.curator.universal.api.SessionStateListener;
 import org.apache.curator.universal.consul.details.ConsulClientBuilder;
+import org.apache.curator.universal.listening.Listenable;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import java.io.Closeable;
 import java.net.URI;
@@ -36,6 +39,8 @@ public interface ConsulClient extends Closeable
         return ConsulClientBuilder.build(client, baseUri);
     }
 
+    CuratorHandle asCuratorHandle();
+
     void start();
 
     @Override
@@ -44,6 +49,8 @@ public interface ConsulClient extends Closeable
     boolean blockUntilSession(Duration maxBlock);
 
     SessionState sessionState();
+
+    Listenable<SessionStateListener> sessionStateListenable();
 
     CompletionStage<JsonNode> read(NodePath path);
 

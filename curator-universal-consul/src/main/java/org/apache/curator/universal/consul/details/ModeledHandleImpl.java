@@ -24,7 +24,7 @@ import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
-import org.apache.curator.universal.modeled.Node;
+import org.apache.curator.universal.api.Node;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
@@ -87,7 +87,7 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     @Override
     public CompletionStage<T> read()
     {
-        return readAsNode().thenApply(Node::model);
+        return readAsNode().thenApply(Node::value);
     }
 
     @Override
@@ -108,11 +108,11 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
                 @Override
                 public Metadata metadata()
                 {
-                    return new MetadataImpl(node);
+                    return new MetadataImpl(node.get("ModifyIndex").asInt());
                 }
 
                 @Override
-                public T model()
+                public T value()
                 {
                     return model;
                 }

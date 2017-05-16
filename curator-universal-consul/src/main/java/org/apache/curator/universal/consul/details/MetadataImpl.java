@@ -1,24 +1,25 @@
 package org.apache.curator.universal.consul.details;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.Metadata;
 
 class MetadataImpl implements Metadata
 {
-    MetadataImpl(JsonNode node)
+    private final int index;
+
+    MetadataImpl(int index)
     {
-        // TODO
+        this.index = index;
     }
 
     @Override
     public int version()
     {
-        return 0;
+        return index;
     }
 
     @Override
     public int transaction()
     {
-        return 0;
+        return index;
     }
 }

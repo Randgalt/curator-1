@@ -22,7 +22,9 @@ import com.google.common.base.Preconditions;
 import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.SessionState;
-import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.api.SessionStateListener;
+import org.apache.curator.universal.cache.CuratorCache;
+import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
@@ -32,25 +34,16 @@ public class ConsulCuratorHandle implements CuratorHandle
 {
     private final ConsulClientImpl consulClient;
 
-    public ConsulCuratorHandle(ConsulClient consulClient)
+    public ConsulCuratorHandle(ConsulClientImpl consulClient)
     {
         Preconditions.checkArgument(consulClient instanceof ConsulClientImpl, "ConsulClient not created properly"); // TODO
-        this.consulClient = (ConsulClientImpl)Objects.requireNonNull(consulClient, "consulClient cannot be null");
+        this.consulClient = Objects.requireNonNull(consulClient, "consulClient cannot be null");
     }
 
     @Override
-    public <T> T unwrap()
+    public Listenable<SessionStateListener> sessionStateListenable()
     {
-        try
-        {
-            //noinspection unchecked
-            return (T)consulClient;
-        }
-        catch ( ClassCastException dummy )
-        {
-            // TODO ignore
-        }
-        return null;
+        return consulClient.sessionStateListenable();
     }
 
     @Override
@@ -69,5 +62,11 @@ public class ConsulCuratorHandle implements CuratorHandle
     public SessionState sessionState()
     {
         return null;
+    }
+
+    @Override
+    public CuratorCache newCuratorCache(NodePath path)
+    {
+        return new ConsulCacheImpl(consulClient, path);
     }
 }

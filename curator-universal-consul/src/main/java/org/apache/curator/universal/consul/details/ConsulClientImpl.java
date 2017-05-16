@@ -19,9 +19,13 @@
 package org.apache.curator.universal.consul.details;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.SessionState;
+import org.apache.curator.universal.api.SessionStateListener;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.listening.Listenable;
+import org.apache.curator.universal.listening.ListenerContainer;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
@@ -48,6 +52,7 @@ class ConsulClientImpl implements ConsulClient
     private final Session session;
     private final DeleteManager deleteManager;
     private final AtomicReference<SessionState> sessionState = new AtomicReference<>(SessionState.LATENT);
+    private final ListenerContainer<SessionStateListener> sessionStateListeners = new ListenerContainer<>();
 
     ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession)
     {
@@ -55,6 +60,12 @@ class ConsulClientImpl implements ConsulClient
         this.client = client;
         session = new Session(this, sessionName, ttl, checks, lockDelay, maxCloseSession);
         deleteManager = new DeleteManager(this);
+    }
+
+    @Override
+    public CuratorHandle asCuratorHandle()
+    {
+        return new ConsulCuratorHandle(this);
     }
 
     @Override
@@ -77,6 +88,12 @@ class ConsulClientImpl implements ConsulClient
         {
             throw new RuntimeException("Could not close http client", e);
         }
+    }
+
+    @Override
+    public Listenable<SessionStateListener> sessionStateListenable()
+    {
+        return sessionStateListeners;
     }
 
     @Override
@@ -202,6 +219,12 @@ class ConsulClientImpl implements ConsulClient
     String sessionId()
     {
         return session.sessionId();
+    }
+
+    void updateSessionState(SessionState newState)
+    {
+        SessionState oldValue = sessionState.getAndSet(newState);
+        // TODO
     }
 
     private CompletionStage<JsonNode> request(NodePath path, Function<URI, HttpRequestBase> builder)

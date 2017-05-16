@@ -21,7 +21,7 @@ package org.apache.curator.universal.zookeeper.details;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
-import org.apache.curator.universal.modeled.Node;
+import org.apache.curator.universal.api.Node;
 import org.apache.curator.x.async.AsyncCuratorFramework;
 import org.apache.curator.x.async.modeled.ModelSpecBuilder;
 import org.apache.curator.x.async.modeled.ModeledFramework;
