@@ -108,7 +108,7 @@ public interface ModeledHandle<T>
      * @param model model to write
      * @return CompletionStage
      */
-    CompletionStage<String> set(T model);
+    CompletionStage<Void> set(T model);
 
     /**
      * Create (or update depending on build options) a ZNode at this instance's path with a serialized
@@ -118,7 +118,7 @@ public interface ModeledHandle<T>
      * @param version if data is being set instead of creating the node, the data version to use
      * @return CompletionStage
      */
-    CompletionStage<String> set(T model, int version);
+    CompletionStage<Void> set(T model, int version);
 
     /**
      * Read the ZNode at this instance's path and deserialize into a model

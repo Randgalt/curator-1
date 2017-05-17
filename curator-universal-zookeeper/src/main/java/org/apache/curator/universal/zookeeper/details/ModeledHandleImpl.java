@@ -97,15 +97,15 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     }
 
     @Override
-    public CompletionStage<String> set(T model)
+    public CompletionStage<Void> set(T model)
     {
-        return client.set(model);
+        return null;// TODO client.set(model);
     }
 
     @Override
-    public CompletionStage<String> set(T model, int version)
+    public CompletionStage<Void> set(T model, int version)
     {
-        return client.set(model, version);
+        return null;// TODO client.set(model, version);
     }
 
     @Override

@@ -18,15 +18,12 @@
  */
 package org.apache.curator.universal.consul.details;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.Metadata;
+import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
-import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.curator.universal.modeled.CachedModeledHandle;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
-import org.apache.curator.universal.api.Node;
-import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -81,13 +78,13 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     }
 
     @Override
-    public CompletionStage<String> set(T model)
+    public CompletionStage<Void> set(T model)
     {
         return set(model, -1);
     }
 
     @Override
-    public CompletionStage<String> set(T model, int version)
+    public CompletionStage<Void> set(T model, int version)
     {
         byte[] bytes;
         try
@@ -96,12 +93,11 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
         }
         catch ( Exception e )
         {
-            CompletableFuture<String> future = new CompletableFuture<>();
+            CompletableFuture<Void> future = new CompletableFuture<>();
             future.completeExceptionally(e);
             return future;
         }
-        CompletionStage<JsonNode> stage = (version >= 0) ? consulClient.set(modelSpec.path(), version, bytes) : consulClient.set(modelSpec.path(), bytes);
-        return stage.thenApply(__ -> null);
+        return (version >= 0) ? consulClient.set(modelSpec.path(), version, bytes) : consulClient.set(modelSpec.path(), bytes);
     }
 
     @Override
@@ -113,31 +109,7 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     @Override
     public CompletionStage<Node<T>> readAsNode()
     {
-        return consulClient.read(modelSpec.path()).thenApply(node -> {
-            JsonNode firstChild = Json.requireFirstChild(node);
-            byte[] data = Base64.getDecoder().decode(firstChild.get("Value").asText());
-            T model = modelSpec.serializer().deserialize(data);
-            return new Node<T>()
-            {
-                @Override
-                public NodePath path()
-                {
-                    return modelSpec.path();
-                }
-
-                @Override
-                public Metadata metadata()
-                {
-                    return new MetadataImpl(node.get("ModifyIndex").asInt());
-                }
-
-                @Override
-                public T value()
-                {
-                    return model;
-                }
-            };
-        });
+        return consulClient.read(modelSpec.path()).thenApply(node -> asNode(modelSpec, node));
     }
 
     @Override
@@ -167,5 +139,30 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     ConsulClientImpl consulClient()
     {
         return consulClient;
+    }
+
+    static <U> Node<U> asNode(ModelSpec<U> modelSpec, Node<byte[]> raw)
+    {
+        U model = modelSpec.serializer().deserialize(raw.value());
+        return new Node<U>()
+        {
+            @Override
+            public NodePath path()
+            {
+                return raw.path();
+            }
+
+            @Override
+            public Metadata metadata()
+            {
+                return raw.metadata();
+            }
+
+            @Override
+            public U value()
+            {
+                return model;
+            }
+        };
     }
 }

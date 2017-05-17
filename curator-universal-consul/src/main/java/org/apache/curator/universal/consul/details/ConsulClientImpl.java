@@ -19,13 +19,18 @@
 package org.apache.curator.universal.consul.details;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.curator.universal.api.CuratorHandle;
+import org.apache.curator.universal.api.Metadata;
+import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.api.SessionStateListener;
+import org.apache.curator.universal.cache.CuratorCache;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.listening.ListenerContainer;
+import org.apache.curator.universal.locks.CuratorLock;
+import org.apache.curator.universal.modeled.ModelSpec;
+import org.apache.curator.universal.modeled.ModeledHandle;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
@@ -36,7 +41,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Semaphore;
@@ -64,12 +71,6 @@ class ConsulClientImpl implements ConsulClient
     }
 
     @Override
-    public CuratorHandle asCuratorHandle()
-    {
-        return new ConsulCuratorHandle(this);
-    }
-
-    @Override
     public void start()
     {
         client.start();
@@ -89,6 +90,24 @@ class ConsulClientImpl implements ConsulClient
         {
             throw new RuntimeException("Could not close http client", e);
         }
+    }
+
+    @Override
+    public <T> ModeledHandle<T> wrap(ModelSpec<T> modelSpec)
+    {
+        return new ModeledHandleImpl<>(this, modelSpec);
+    }
+
+    @Override
+    public CuratorLock createLock(NodePath lockPath)
+    {
+        return new CuratorLockImpl(this, Objects.requireNonNull(lockPath, "lockPath cannot be null"));
+    }
+
+    @Override
+    public CuratorCache newCuratorCache(NodePath path)
+    {
+        return new ConsulCacheImpl(this, path);
     }
 
     @Override
@@ -136,33 +155,33 @@ class ConsulClientImpl implements ConsulClient
     }
 
     @Override
-    public CompletionStage<JsonNode> read(NodePath path)
+    public CompletionStage<Node<byte[]>> read(NodePath path)
     {
-        return newApiRequest().get(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> response.node);
+        return newApiRequest().get(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> toNode(path, response.node));
     }
 
     @Override
-    public CompletionStage<JsonNode> set(NodePath path, int version, byte[] data)
+    public CompletionStage<Void> set(NodePath path, int version, byte[] data)
     {
-        return newApiRequest().put(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version), data).thenApply(response -> response.node);
+        return newApiRequest().put(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version), data).thenApply(__ -> null);
     }
 
     @Override
-    public CompletionStage<JsonNode> set(NodePath path, byte[] data)
+    public CompletionStage<Void> set(NodePath path, byte[] data)
     {
-        return newApiRequest().put(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> response.node);
+        return newApiRequest().put(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(__ -> null);
     }
 
     @Override
-    public CompletionStage<JsonNode> delete(NodePath path)
+    public CompletionStage<Void> delete(NodePath path)
     {
-        return newApiRequest().delete(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> response.node);
+        return newApiRequest().delete(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(__ -> null);
     }
 
     @Override
-    public CompletionStage<JsonNode> delete(NodePath path, int version)
+    public CompletionStage<Void> delete(NodePath path, int version)
     {
-        return newApiRequest().delete(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version)).thenApply(response -> response.node);
+        return newApiRequest().delete(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version)).thenApply(__ -> null);
     }
 
     @Override
@@ -269,5 +288,31 @@ class ConsulClientImpl implements ConsulClient
     private URI buildVersionedUri(String apiPath, String extra, int version)
     {
         return (version >= 0) ? buildUri(apiPath, extra, "cas", version) : buildUri(apiPath, extra);
+    }
+
+    private Node<byte[]> toNode(NodePath path, JsonNode node)
+    {
+        JsonNode firstChild = Json.requireFirstChild(node);
+        byte[] data = Base64.getDecoder().decode(firstChild.get("Value").asText());
+        return new Node<byte[]>()
+        {
+            @Override
+            public NodePath path()
+            {
+                return path;
+            }
+
+            @Override
+            public Metadata metadata()
+            {
+                return new MetadataImpl(node.get("ModifyIndex").asInt());
+            }
+
+            @Override
+            public byte[] value()
+            {
+                return data;
+            }
+        };
     }
 }

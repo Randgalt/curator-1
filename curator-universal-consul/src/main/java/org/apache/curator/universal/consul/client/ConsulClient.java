@@ -18,55 +18,21 @@
  */
 package org.apache.curator.universal.consul.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.CuratorHandle;
-import org.apache.curator.universal.api.NodePath;
-import org.apache.curator.universal.api.SessionState;
-import org.apache.curator.universal.api.SessionStateListener;
 import org.apache.curator.universal.consul.details.ConsulClientBuilder;
-import org.apache.curator.universal.listening.Listenable;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import java.io.Closeable;
 import java.net.URI;
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.CompletionStage;
 
-public interface ConsulClient extends Closeable
+public interface ConsulClient extends CuratorHandle, Closeable
 {
     static ConsulClientBuilder build(CloseableHttpAsyncClient client, URI baseUri)
     {
         return ConsulClientBuilder.build(client, baseUri);
     }
 
-    CuratorHandle asCuratorHandle();
-
     void start();
 
     @Override
     void close();
-
-    boolean blockUntilSession(Duration maxBlock);
-
-    SessionState sessionState();
-
-    Listenable<SessionStateListener> sessionStateListenable();
-
-    CompletionStage<JsonNode> read(NodePath path);
-
-    CompletionStage<JsonNode> set(NodePath path, byte[] data);
-
-    CompletionStage<JsonNode> set(NodePath path, int version, byte[] data);
-
-    CompletionStage<JsonNode> delete(NodePath path);
-
-    CompletionStage<JsonNode> delete(NodePath path, int version);
-
-    /**
-     * Return the child paths of the given path (in no particular order)
-     *
-     * @param path parent path
-     * @return AsyncStage
-     */
-    CompletionStage<List<NodePath>> children(NodePath path);
 }

@@ -23,6 +23,9 @@ import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CompletionStage;
 
 public interface CuratorHandle
 {
@@ -32,7 +35,27 @@ public interface CuratorHandle
 
     SessionState sessionState();
 
+    boolean blockUntilSession(Duration maxBlock);
+
     Listenable<SessionStateListener> sessionStateListenable();
 
     CuratorCache newCuratorCache(NodePath path);
+
+    CompletionStage<Node<byte[]>> read(NodePath path);
+
+    CompletionStage<Void> set(NodePath path, byte[] data);
+
+    CompletionStage<Void> set(NodePath path, int version, byte[] data);
+
+    CompletionStage<Void> delete(NodePath path);
+
+    CompletionStage<Void> delete(NodePath path, int version);
+
+    /**
+     * Return the child paths of the given path (in no particular order)
+     *
+     * @param path parent path
+     * @return AsyncStage
+     */
+    CompletionStage<List<NodePath>> children(NodePath path);
 }

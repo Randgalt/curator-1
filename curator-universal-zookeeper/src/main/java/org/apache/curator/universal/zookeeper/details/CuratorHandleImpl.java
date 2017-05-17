@@ -19,6 +19,7 @@
 package org.apache.curator.universal.zookeeper.details;
 
 import org.apache.curator.universal.api.CuratorHandle;
+import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.api.SessionStateListener;
@@ -28,6 +29,9 @@ import org.apache.curator.universal.locks.CuratorLock;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
 import org.apache.curator.x.async.AsyncCuratorFramework;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CompletionStage;
 
 public class CuratorHandleImpl implements CuratorHandle
 {
@@ -64,6 +68,48 @@ public class CuratorHandleImpl implements CuratorHandle
 
     @Override
     public CuratorCache newCuratorCache(NodePath path)
+    {
+        return null;
+    }
+
+    @Override
+    public boolean blockUntilSession(Duration maxBlock)
+    {
+        return false;
+    }
+
+    @Override
+    public CompletionStage<Node<byte[]>> read(NodePath path)
+    {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<Void> set(NodePath path, byte[] data)
+    {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<Void> set(NodePath path, int version, byte[] data)
+    {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<Void> delete(NodePath path)
+    {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<Void> delete(NodePath path, int version)
+    {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<List<NodePath>> children(NodePath path)
     {
         return null;
     }

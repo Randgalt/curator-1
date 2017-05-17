@@ -1,6 +1,5 @@
 package org.apache.curator.universal.consul.details;
 
-import org.apache.curator.universal.api.Metadata;
 import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.cache.CuratorCacheListener;
@@ -88,7 +87,7 @@ class CachedModeledHandleImpl<T> implements CachedModeledHandle<T>
                     {
                         if ( node.value().length > 0 )    // otherwise it's probably just a parent node being created
                         {
-                            listener.accept(type, asNode(node));
+                            listener.accept(type, ModeledHandleImpl.asNode(client.modelSpec(), node));
                         }
                     }
 
@@ -151,13 +150,13 @@ class CachedModeledHandleImpl<T> implements CachedModeledHandle<T>
     }
 
     @Override
-    public CompletionStage<String> set(T model)
+    public CompletionStage<Void> set(T model)
     {
         return client.set(model);
     }
 
     @Override
-    public CompletionStage<String> set(T model, int version)
+    public CompletionStage<Void> set(T model, int version)
     {
         return client.set(model, version);
     }
@@ -208,31 +207,6 @@ class CachedModeledHandleImpl<T> implements CachedModeledHandle<T>
             future.completeExceptionally(new HttpResponseException(HttpStatus.SC_NOT_FOUND, "Not Found"));
             return future;
         }
-        return CompletableFuture.completedFuture(resolver.apply(asNode(data)));
-    }
-
-    private Node<T> asNode(Node<byte[]> raw)
-    {
-        T model = client.modelSpec().serializer().deserialize(raw.value());
-        return new Node<T>()
-        {
-            @Override
-            public NodePath path()
-            {
-                return raw.path();
-            }
-
-            @Override
-            public Metadata metadata()
-            {
-                return raw.metadata();
-            }
-
-            @Override
-            public T value()
-            {
-                return model;
-            }
-        };
+        return CompletableFuture.completedFuture(resolver.apply(ModeledHandleImpl.asNode(client.modelSpec(), data)));
     }
 }

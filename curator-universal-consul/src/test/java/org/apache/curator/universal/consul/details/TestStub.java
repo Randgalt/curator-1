@@ -1,11 +1,7 @@
 package org.apache.curator.universal.consul.details;
 
-import org.apache.curator.universal.api.CuratorHandle;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.consul.client.ConsulClient;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -62,7 +58,6 @@ public class TestStub
             client.blockUntilSession(Duration.ofHours(1));
 
             CountDownLatch latch = new CountDownLatch(2);
-            CuratorHandle handle = client.asCuratorHandle();
 /*
             NodePath path = NodePath.parse("/a/b/c");
             ModelSpec<Person> modelSpec = ModelSpec.builder(path, JacksonModelSerializer.build(Person.class)).build();
@@ -108,7 +103,7 @@ public class TestStub
             complete(client.set(NodePath.parse("/a/b/c/d/f"), "four".getBytes()));
             complete(client.set(NodePath.parse("/a/b/c/d/f/g"), "five".getBytes()));
 
-            complete(client.children(NodePath.parse("/a/b/c/d")).thenAccept(paths -> System.out.println(paths)));
+            complete(client.children(NodePath.parse("/a/b/c/d")).thenAccept(System.out::println));
 
             ConsulCacheImpl cache = new ConsulCacheImpl((ConsulClientImpl)client, NodePath.parse("/a/b/c"));
             cache.start();
