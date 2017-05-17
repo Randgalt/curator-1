@@ -26,6 +26,7 @@ import org.apache.curator.universal.api.SessionState;
 import org.apache.curator.universal.api.SessionStateListener;
 import org.apache.curator.universal.cache.CuratorCache;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.consul.retry.RetryPolicy;
 import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.listening.ListenerContainer;
 import org.apache.curator.universal.locks.CuratorLock;
@@ -54,6 +55,7 @@ class ConsulClientImpl implements ConsulClient
 {
     private final CloseableHttpAsyncClient client;
     private final String authenticationToken;
+    private final RetryPolicy retryPolicy;
     private final URI baseUri;
     private final Json json = new Json();
     private final Session session;
@@ -61,11 +63,12 @@ class ConsulClientImpl implements ConsulClient
     private final AtomicReference<SessionState> sessionState = new AtomicReference<>(SessionState.LATENT);
     private final ListenerContainer<SessionStateListener> sessionStateListeners = new ListenerContainer<>();
 
-    ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession, String authenticationToken)
+    ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession, String authenticationToken, RetryPolicy retryPolicy)
     {
         this.baseUri = baseUri;
         this.client = client;
         this.authenticationToken = authenticationToken;
+        this.retryPolicy = retryPolicy;
         session = new Session(this, sessionName, ttl, checks, lockDelay, maxCloseSession);
         deleteManager = new DeleteManager(this);
     }
@@ -229,6 +232,12 @@ class ConsulClientImpl implements ConsulClient
             protected String getAuthenticationToken()
             {
                 return authenticationToken;
+            }
+
+            @Override
+            protected RetryPolicy getRetryPolicy()
+            {
+                return retryPolicy;
             }
         };
     }

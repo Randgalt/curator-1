@@ -2,6 +2,8 @@ package org.apache.curator.universal.consul.details;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.consul.retry.ExponentialBackoffRetry;
+import org.apache.curator.universal.consul.retry.RetryPolicy;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import java.net.URI;
 import java.time.Duration;
@@ -19,6 +21,7 @@ public class ConsulClientBuilder
     private List<String> checks = Collections.emptyList();
     private Duration maxCloseSession = Duration.ofSeconds(5);
     private String authenticationToken = null;
+    private RetryPolicy retryPolicy = new ExponentialBackoffRetry(Duration.ofSeconds(1), Duration.ofSeconds(30), 3);
 
     public static ConsulClientBuilder build(CloseableHttpAsyncClient client, URI baseUri)
     {
@@ -27,7 +30,7 @@ public class ConsulClientBuilder
 
     public ConsulClient build()
     {
-        return new ConsulClientImpl(client, baseUri, sessionName, ttl, checks, lockDelay, maxCloseSession, authenticationToken);
+        return new ConsulClientImpl(client, baseUri, sessionName, ttl, checks, lockDelay, maxCloseSession, authenticationToken, retryPolicy);
     }
 
     private ConsulClientBuilder(CloseableHttpAsyncClient client, URI baseUri)
@@ -69,6 +72,12 @@ public class ConsulClientBuilder
     public ConsulClientBuilder authenticationToken(String authenticationToken)
     {
         this.authenticationToken = Objects.requireNonNull(authenticationToken, "authenticationToken cannot be null");
+        return this;
+    }
+
+    public ConsulClientBuilder retryPolicy(RetryPolicy retryPolicy)
+    {
+        this.retryPolicy = Objects.requireNonNull(retryPolicy, "retryPolicy cannot be null");
         return this;
     }
 }

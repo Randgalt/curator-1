@@ -64,7 +64,7 @@ class Session implements Closeable
         if ( !localSessionId.equals(errorSessionId) )
         {
             URI uri = client.buildUri(ApiPaths.deleteSession, localSessionId);
-            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().delete(uri);
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().useRetryPolicy(false).delete(uri); // TODO - use delete manager
             ApiRequest.get(future, maxCloseSession.toMillis(), TimeUnit.MILLISECONDS, "Could not delete session: ", localSessionId);
         }
     }
@@ -113,7 +113,7 @@ class Session implements Closeable
         URI uri = client.buildUri(ApiPaths.createSession, null);
         try
         {
-            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().put(uri, client.json().mapper().writeValueAsBytes(node));
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().useRetryPolicy(false).put(uri, client.json().mapper().writeValueAsBytes(node));
             future.whenComplete((response, e) -> {
                 if ( e != null )
                 {
@@ -143,7 +143,7 @@ class Session implements Closeable
         if ( !localSessionId.equals(errorSessionId) )
         {
             URI uri = client.buildUri(ApiPaths.renewSession, localSessionId);
-            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().put(uri);
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().useRetryPolicy(false).put(uri);
             future.thenAccept(response -> {
                 if ( response.node.has("TTL") )
                 {
