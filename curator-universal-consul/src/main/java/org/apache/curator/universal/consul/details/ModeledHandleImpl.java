@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.Metadata;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.consul.client.ConsulClient;
+import org.apache.curator.universal.modeled.CachedModeledHandle;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
 import org.apache.curator.universal.api.Node;
@@ -30,16 +31,35 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
 
 class ModeledHandleImpl<T> implements ModeledHandle<T>
 {
     private final ModelSpec<T> modelSpec;
-    private final ConsulClient consulClient;
+    private final ConsulClientImpl consulClient;
 
-    ModeledHandleImpl(ConsulClient consulClient, ModelSpec<T> modelSpec)
+    ModeledHandleImpl(ConsulClientImpl consulClient, ModelSpec<T> modelSpec)
     {
         this.consulClient = consulClient;
         this.modelSpec = Objects.requireNonNull(modelSpec, "modelSpec cannot be null");
+    }
+
+    @Override
+    public ModelSpec<T> modelSpec()
+    {
+        return modelSpec;
+    }
+
+    @Override
+    public CachedModeledHandle<T> cached()
+    {
+        return null;
+    }
+
+    @Override
+    public CachedModeledHandle<T> cached(ExecutorService executor)
+    {
+        return null;
     }
 
     @Override
@@ -142,5 +162,10 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     public CompletionStage<List<NodePath>> siblings()
     {
         return consulClient.children(modelSpec.parent().path());
+    }
+
+    ConsulClientImpl consulClient()
+    {
+        return consulClient;
     }
 }

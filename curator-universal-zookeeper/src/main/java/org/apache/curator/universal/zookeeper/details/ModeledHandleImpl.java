@@ -19,6 +19,7 @@
 package org.apache.curator.universal.zookeeper.details;
 
 import org.apache.curator.universal.api.NodePath;
+import org.apache.curator.universal.modeled.CachedModeledHandle;
 import org.apache.curator.universal.modeled.ModelSpec;
 import org.apache.curator.universal.modeled.ModeledHandle;
 import org.apache.curator.universal.api.Node;
@@ -29,6 +30,7 @@ import org.apache.curator.x.async.modeled.ZPath;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 class ModeledHandleImpl<T> implements ModeledHandle<T>
@@ -56,6 +58,24 @@ class ModeledHandleImpl<T> implements ModeledHandle<T>
     private ModeledHandleImpl(ModeledFramework<T> client)
     {
         this.client = client;
+    }
+
+    @Override
+    public CachedModeledHandle<T> cached()
+    {
+        return null;
+    }
+
+    @Override
+    public CachedModeledHandle<T> cached(ExecutorService executor)
+    {
+        return null;
+    }
+
+    @Override
+    public ModelSpec<T> modelSpec()
+    {
+        return null;
     }
 
     @Override

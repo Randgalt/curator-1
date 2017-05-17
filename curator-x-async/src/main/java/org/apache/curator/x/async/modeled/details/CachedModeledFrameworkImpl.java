@@ -137,7 +137,7 @@ class CachedModeledFrameworkImpl<T> implements CachedModeledFramework<T>
     @Override
     public CachedModeledFramework<T> withPath(ZPath path)
     {
-        return new CachedModeledFrameworkImpl<>(client.withPath(path), cache, executor, asyncDefaultMode);
+        throw new UnsupportedOperationException("Not supported for CachedModeledFramework. Instead, call withPath() on the ModeledFramework before calling cached()");
     }
 
     @Override

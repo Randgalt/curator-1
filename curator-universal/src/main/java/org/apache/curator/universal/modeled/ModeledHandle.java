@@ -22,9 +22,42 @@ import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
 
 public interface ModeledHandle<T>
 {
+    /**
+     * <p>
+     *     Use an internally created cache as a front for this modeled instance. All read APIs use the internal
+     *     cache. i.e. read calls always use the cache instead of making direct queries. Note: you must call
+     *     {@link org.apache.curator.universal.modeled.CachedModeledHandle#start()} and
+     *     {@link org.apache.curator.universal.modeled.CachedModeledHandle#close()} to start/stop
+     * </p>
+     *
+     * <p>
+     *     Note: this method internally allocates an Executor for the cache and read methods. Use
+     *     {@link #cached(java.util.concurrent.ExecutorService)} if you'd like to provide your own executor service.
+     * </p>
+     *
+     * @return wrapped instance
+     */
+    CachedModeledHandle<T> cached();
+
+    /**
+     * Same as {@link #cached()} but allows for providing an executor service
+     *
+     * @param executor thread pool to use for the cache and for read operations
+     * @return wrapped instance
+     */
+    CachedModeledHandle<T> cached(ExecutorService executor);
+
+    /**
+     * Return this instance's model spec
+     *
+     * @return model spec
+     */
+    ModelSpec<T> modelSpec();
+
     /**
      * <p>
      *     Return a new Modeled Curator instance with all the same options but applying to the given child node of this Modeled Curator's
