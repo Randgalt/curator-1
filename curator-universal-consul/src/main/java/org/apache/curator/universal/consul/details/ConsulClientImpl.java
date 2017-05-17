@@ -26,28 +26,27 @@ import org.apache.curator.universal.api.SessionStateListener;
 import org.apache.curator.universal.consul.client.ConsulClient;
 import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.listening.ListenerContainer;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.nio.client.HttpAsyncClient;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 class ConsulClientImpl implements ConsulClient
 {
     private final CloseableHttpAsyncClient client;
+    private final String authenticationToken;
     private final URI baseUri;
     private final Json json = new Json();
     private final Session session;
@@ -55,10 +54,11 @@ class ConsulClientImpl implements ConsulClient
     private final AtomicReference<SessionState> sessionState = new AtomicReference<>(SessionState.LATENT);
     private final ListenerContainer<SessionStateListener> sessionStateListeners = new ListenerContainer<>();
 
-    ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession)
+    ConsulClientImpl(CloseableHttpAsyncClient client, URI baseUri, String sessionName, String ttl, List<String> checks, String lockDelay, Duration maxCloseSession, String authenticationToken)
     {
         this.baseUri = baseUri;
         this.client = client;
+        this.authenticationToken = authenticationToken;
         session = new Session(this, sessionName, ttl, checks, lockDelay, maxCloseSession);
         deleteManager = new DeleteManager(this);
     }
@@ -138,42 +138,40 @@ class ConsulClientImpl implements ConsulClient
     @Override
     public CompletionStage<JsonNode> read(NodePath path)
     {
-        return request(path, HttpGet::new);
+        return newApiRequest().get(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> response.node);
     }
 
     @Override
     public CompletionStage<JsonNode> set(NodePath path, int version, byte[] data)
     {
-        return request(path, version, uri -> putRequest(uri, data));
+        return newApiRequest().put(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version), data).thenApply(response -> response.node);
     }
 
     @Override
     public CompletionStage<JsonNode> set(NodePath path, byte[] data)
     {
-        return request(path, uri -> putRequest(uri, data));
+        return newApiRequest().put(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> response.node);
     }
 
     @Override
     public CompletionStage<JsonNode> delete(NodePath path)
     {
-        return request(path, HttpDelete::new);
+        return newApiRequest().delete(buildUri(ApiPaths.keyValue, path.fullPath())).thenApply(response -> response.node);
     }
 
     @Override
     public CompletionStage<JsonNode> delete(NodePath path, int version)
     {
-        return request(path, version, HttpDelete::new);
+        return newApiRequest().delete(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version)).thenApply(response -> response.node);
     }
 
     @Override
     public CompletionStage<List<NodePath>> children(NodePath path)
     {
-        Callback callback = new Callback(json);
-        HttpGet request = new HttpGet(buildUri(ApiPaths.keyValue, path.fullPath(), "recurse", true, "keys", true));
-        client.execute(request, callback);
-        return callback.getFuture().thenApply(node -> {
+        CompletableFuture<ApiRequest.Response> future = newApiRequest().get(buildUri(ApiPaths.keyValue, path.fullPath(), "recurse", true, "keys", true));
+        return future.thenApply(response -> {
             List<NodePath> paths = new ArrayList<>();
-            for ( JsonNode child : node )
+            for ( JsonNode child : response.node )
             {
                 NodePath childPath = NodePath.parse(child.asText());
                 if ( childPath.parent().equals(path) )
@@ -192,9 +190,28 @@ class ConsulClientImpl implements ConsulClient
         return request;
     }
 
-    CloseableHttpAsyncClient httpClient()
+    ApiRequest newApiRequest()
     {
-        return client;
+        return new ApiRequest()
+        {
+            @Override
+            protected Json json()
+            {
+                return json;
+            }
+
+            @Override
+            protected HttpAsyncClient httpClient()
+            {
+                return client;
+            }
+
+            @Override
+            protected String getAuthenticationToken()
+            {
+                return authenticationToken;
+            }
+        };
     }
 
     Json json()
@@ -247,19 +264,6 @@ class ConsulClientImpl implements ConsulClient
         {
             sessionStateListeners.forEach(l -> l.newSessionState(newState));
         }
-    }
-
-    private CompletionStage<JsonNode> request(NodePath path, Function<URI, HttpRequestBase> builder)
-    {
-        return request(path, -1, builder);
-    }
-
-    private CompletionStage<JsonNode> request(NodePath path, int version, Function<URI, HttpRequestBase> builder)
-    {
-        Callback callback = new Callback(json);
-        HttpRequestBase request = builder.apply(buildVersionedUri(ApiPaths.keyValue, path.fullPath(), version));
-        client.execute(request, callback);
-        return callback.getFuture();
     }
 
     private URI buildVersionedUri(String apiPath, String extra, int version)

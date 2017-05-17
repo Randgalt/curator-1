@@ -18,6 +18,7 @@ public class ConsulClientBuilder
     private String lockDelay = "0s";
     private List<String> checks = Collections.emptyList();
     private Duration maxCloseSession = Duration.ofSeconds(5);
+    private String authenticationToken = null;
 
     public static ConsulClientBuilder build(CloseableHttpAsyncClient client, URI baseUri)
     {
@@ -26,7 +27,7 @@ public class ConsulClientBuilder
 
     public ConsulClient build()
     {
-        return new ConsulClientImpl(client, baseUri, sessionName, ttl, checks, lockDelay, maxCloseSession);
+        return new ConsulClientImpl(client, baseUri, sessionName, ttl, checks, lockDelay, maxCloseSession, authenticationToken);
     }
 
     private ConsulClientBuilder(CloseableHttpAsyncClient client, URI baseUri)
@@ -62,6 +63,12 @@ public class ConsulClientBuilder
     public ConsulClientBuilder checks(List<String> checks)
     {
         this.checks = ImmutableList.copyOf(Objects.requireNonNull(checks, "checks cannot be null"));
+        return this;
+    }
+
+    public ConsulClientBuilder authenticationToken(String authenticationToken)
+    {
+        this.authenticationToken = Objects.requireNonNull(authenticationToken, "authenticationToken cannot be null");
         return this;
     }
 }

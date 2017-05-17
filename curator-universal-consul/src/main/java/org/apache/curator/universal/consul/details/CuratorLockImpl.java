@@ -3,12 +3,9 @@ package org.apache.curator.universal.consul.details;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.curator.universal.api.NodePath;
 import org.apache.curator.universal.locks.CuratorLock;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPut;
 import java.net.URI;
 import java.time.Duration;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 class CuratorLockImpl implements CuratorLock
@@ -35,10 +32,8 @@ class CuratorLockImpl implements CuratorLock
         {
             long startNanos = System.nanoTime();
 
-            HttpPut put = client.putRequest(makeUri("acquire"), new byte[0]);
-            Future<HttpResponse> future = client.httpClient().execute(put, null);
-            SyncHandler handler = new SyncHandler(client.json(), future);
-            SyncHandler.Response response = handler.get(remainingNanos, TimeUnit.NANOSECONDS, "Acquiring lock: ", lockPath);
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().put(makeUri("acquire"));
+            ApiRequest.Response response = ApiRequest.get(future, remainingNanos, TimeUnit.NANOSECONDS, "Acquiring lock: ", lockPath);
             if ( response == null )
             {
                 break;
@@ -59,10 +54,8 @@ class CuratorLockImpl implements CuratorLock
             {
                 uri = client.buildUri(ApiPaths.keyValue, lockPath.fullPath());
             }
-            HttpGet get = new HttpGet(uri);
-            future = client.httpClient().execute(get, null);
-            handler = new SyncHandler(client.json(), future);
-            response = handler.get(remainingNanos, TimeUnit.NANOSECONDS, "Acquiring lock: ", lockPath);
+            future = client.newApiRequest().get(uri);
+            response = ApiRequest.get(future, remainingNanos, TimeUnit.NANOSECONDS, "Acquiring lock: ", lockPath);
             if ( response == null )
             {
                 break;
@@ -85,8 +78,7 @@ class CuratorLockImpl implements CuratorLock
     public void release()
     {
         // TODO use Delete Manager
-        HttpPut put = client.putRequest(makeUri("release"), new byte[0]);
-        client.httpClient().execute(put, null);
+        client.newApiRequest().put(makeUri("release"));
     }
 
     private URI makeUri(String mode)

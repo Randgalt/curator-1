@@ -5,9 +5,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.curator.universal.api.SessionState;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpPut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.Closeable;
@@ -15,8 +12,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -67,20 +64,8 @@ class Session implements Closeable
         if ( !localSessionId.equals(errorSessionId) )
         {
             URI uri = client.buildUri(ApiPaths.deleteSession, localSessionId);
-            HttpDelete request = new HttpDelete(uri);
-            Future<HttpResponse> future = client.httpClient().execute(request, null);
-            try
-            {
-                future.get(maxCloseSession.toMillis(), TimeUnit.MILLISECONDS);
-            }
-            catch ( InterruptedException dummy )
-            {
-                Thread.interrupted();
-            }
-            catch ( Exception e )
-            {
-                log.error("Could not delete session: " + localSessionId, e);
-            }
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().delete(uri);
+            ApiRequest.get(future, maxCloseSession.toMillis(), TimeUnit.MILLISECONDS, "Could not delete session: ", localSessionId);
         }
     }
 
@@ -128,10 +113,8 @@ class Session implements Closeable
         URI uri = client.buildUri(ApiPaths.createSession, null);
         try
         {
-            HttpPut request = client.putRequest(uri, client.json().mapper().writeValueAsBytes(node));
-            Callback callback = new Callback(client.json());
-            client.httpClient().execute(request, callback);
-            callback.getFuture().whenComplete((result, e) -> {
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().put(uri, client.json().mapper().writeValueAsBytes(node));
+            future.whenComplete((response, e) -> {
                 if ( e != null )
                 {
                     log.error("Session creation failed", e);
@@ -139,10 +122,10 @@ class Session implements Closeable
                 }
                 else
                 {
-                    setSessionId(result.get("ID").asText());
+                    setSessionId(response.node.get("ID").asText());
                 }
             });
-            callback.getFuture().exceptionally(e -> {
+            future.exceptionally(e -> {
                 log.error("Could not create session", e);
                 setSessionId(errorSessionId);
                 return null;
@@ -160,13 +143,11 @@ class Session implements Closeable
         if ( !localSessionId.equals(errorSessionId) )
         {
             URI uri = client.buildUri(ApiPaths.renewSession, localSessionId);
-            HttpPut request = new HttpPut(uri);
-            Callback callback = new Callback(client.json());
-            client.httpClient().execute(request, callback);
-            callback.getFuture().thenAccept(node -> {
-                if ( node.has("TTL") )
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().put(uri);
+            future.thenAccept(response -> {
+                if ( response.node.has("TTL") )
                 {
-                    String ttlString = node.get("TTL").asText();
+                    String ttlString = response.node.get("TTL").asText();
                     try
                     {
                         Duration newTtl = Duration.parse(ttlString);
@@ -183,7 +164,7 @@ class Session implements Closeable
                 }
                 setSessionId(localSessionId);
             });
-            callback.getFuture().exceptionally(e -> {
+            future.exceptionally(e -> {
                 log.error("Could not renew session: " + localSessionId, e);
                 setSessionId(errorSessionId);
                 return null;

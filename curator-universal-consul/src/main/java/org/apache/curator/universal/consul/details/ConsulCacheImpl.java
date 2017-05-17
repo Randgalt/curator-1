@@ -5,12 +5,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.curator.universal.api.Node;
 import org.apache.curator.universal.api.NodePath;
-import org.apache.curator.universal.cache.CuratorCacheListener;
 import org.apache.curator.universal.cache.CuratorCache;
+import org.apache.curator.universal.cache.CuratorCacheListener;
 import org.apache.curator.universal.listening.Listenable;
 import org.apache.curator.universal.listening.ListenerContainer;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Base64;
@@ -18,6 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -103,12 +102,10 @@ public class ConsulCacheImpl implements CuratorCache
         {
             uri = client.buildUri(ApiPaths.keyValue, path.fullPath(), "index", currentConsulIndex, "recurse", true);
         }
-        HttpGet request = new HttpGet(uri);
         try
         {
-            Future<HttpResponse> future = client.httpClient().execute(request, null);
-            SyncHandler handler = new SyncHandler(client.json(), future);
-            SyncHandler.Response response = handler.get(maxRead.toMillis(), TimeUnit.MILLISECONDS, "Could not read path: ", path.toString());
+            CompletableFuture<ApiRequest.Response> future = client.newApiRequest().get(uri);
+            ApiRequest.Response response = ApiRequest.get(future, maxRead.toMillis(), TimeUnit.MILLISECONDS, "Could not read path: ", path.toString());
             if ( response != null )
             {
                 currentConsulIndex = response.consulIndex;

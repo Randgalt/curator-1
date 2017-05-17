@@ -54,56 +54,6 @@ public class TestStub
     }
 
     @Test
-    public void testIt() throws Exception
-    {
-        FutureCallback<HttpResponse> callback = new FutureCallback<HttpResponse>()
-        {
-            @Override
-            public void completed(HttpResponse result)
-            {
-                System.out.println("completed: " + result.getStatusLine());
-            }
-
-            @Override
-            public void failed(Exception ex)
-            {
-                System.out.println("Failed: " + ex.getMessage());
-            }
-
-            @Override
-            public void cancelled()
-            {
-                System.out.println("Cancelled");
-            }
-        };
-
-        try ( ConsulClient client = ConsulClient.build(HttpAsyncClients.createDefault(), new URI("http://localhost:8500")).ttl("10s").build() )
-        {
-            client.start();
-
-            complete(client.set(NodePath.parse("/a/b/c"), new byte[0]));
-            complete(client.set(NodePath.parse("/a/b/c/d"), new byte[0]));
-            complete(client.set(NodePath.parse("/a/b/c/d/e"), new byte[0]));
-            complete(client.set(NodePath.parse("/a/b/c/d/f"), new byte[0]));
-            complete(client.set(NodePath.parse("/a/b/c/d/f/g"), new byte[0]));
-
-            for ( int i = 0; i < 10; ++i )
-            {
-                HttpGet request = new HttpGet("http://localhost:8500/v1/kv/a/b/c?index=11&recurse=true");
-                ((ConsulClientImpl)client).httpClient().execute(request, callback).get();
-                Thread.sleep(5000);
-            }
-            System.out.println("NEXT");
-            for ( int i = 0; i < 10; ++i )
-            {
-                HttpGet request = new HttpGet("http://localhost:8500/v1/kv/a/b/c?index=12&recurse=true");
-                ((ConsulClientImpl)client).httpClient().execute(request, callback).get();
-                Thread.sleep(5000);
-            }
-        }
-    }
-
-    @Test
     public void testFoo() throws Exception
     {
         try ( ConsulClient client = ConsulClient.build(HttpAsyncClients.createDefault(), new URI("http://localhost:8500")).build() )
