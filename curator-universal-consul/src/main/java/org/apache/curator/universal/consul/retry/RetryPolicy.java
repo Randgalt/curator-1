@@ -16,9 +16,18 @@ public interface RetryPolicy
      */
     boolean      allowRetry(int retryCount, Duration elapsed);
 
-    default void sleep(Duration time) throws InterruptedException
+    default boolean sleep(Duration time)
     {
-        TimeUnit.NANOSECONDS.sleep(time.toNanos());
+        try
+        {
+            TimeUnit.NANOSECONDS.sleep(time.toNanos());
+            return true;
+        }
+        catch ( InterruptedException e )
+        {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     static RetryPolicy none()

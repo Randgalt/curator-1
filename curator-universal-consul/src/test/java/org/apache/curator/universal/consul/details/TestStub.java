@@ -55,7 +55,7 @@ public class TestStub
         try ( ConsulClient client = ConsulClient.build(HttpAsyncClients.createDefault(), new URI("http://localhost:8500")).build() )
         {
             client.start();
-            client.blockUntilSession(Duration.ofHours(1));
+            client.blockUntilSession(Duration.ofSeconds(10));
 
             CountDownLatch latch = new CountDownLatch(2);
 /*

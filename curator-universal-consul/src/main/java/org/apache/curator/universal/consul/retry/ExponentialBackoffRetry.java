@@ -26,16 +26,7 @@ public class ExponentialBackoffRetry implements RetryPolicy
             Duration exponentialSleep = baseSleepTime.multipliedBy(Math.max(1, ThreadLocalRandom.current().nextInt(1 << (retryCount + 1))));
             Duration thisSleep = (exponentialSleep.compareTo(maxSleepTime) > 0) ? maxSleepTime : exponentialSleep;
 
-            try
-            {
-                sleep(thisSleep);
-            }
-            catch ( InterruptedException e )
-            {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-            return true;
+            return sleep(thisSleep);
         }
         return false;
     }
